@@ -1,0 +1,348 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>退休複利存錢計畫計算機</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 Chart.js 繪製圖表 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <!-- 設定 Tailwind 配置，使用 Inter 字體 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 自定義樣式 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f7f7f7;
+        }
+        .input-group label {
+            font-weight: 500;
+            color: #333;
+        }
+        .result-box {
+            @apply p-6 mt-6 bg-white border-4 border-indigo-600 rounded-xl shadow-2xl;
+        }
+        .chart-container {
+            position: relative;
+            height: 40vh;
+            width: 100%;
+            min-height: 300px;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+<div class="max-w-5xl mx-auto bg-white p-6 sm:p-10 rounded-2xl shadow-xl">
+    <h1 class="text-3xl sm:text-4xl font-extrabold text-center text-indigo-700 mb-2">
+        🚀 退休財務規劃計算機
+    </h1>
+    <p class="text-center text-gray-500 mb-8">
+        試算您的累積資產與退休提領能力，目標是讓資產持續為您工作！
+    </p>
+
+    <!-- 輸入區塊 -->
+    <div id="input-container" class="space-y-6">
+
+        <h2 class="text-xl font-bold text-indigo-700 border-b pb-2 mb-4">累積階段 (退休前)</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="input-group">
+                <label for="initialCapital" class="block text-gray-700 mb-1">期初本金 (TWD)</label>
+                <input type="number" id="initialCapital" value="100000" min="0" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150" oninput="calculateRetirement()">
+            </div>
+            <div class="input-group">
+                <label for="monthlySaving" class="block text-gray-700 mb-1">每月定期定額 (TWD)</label>
+                <input type="number" id="monthlySaving" value="15000" min="0" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150" oninput="calculateRetirement()">
+            </div>
+            <div class="input-group">
+                <label for="currentAge" class="block text-gray-700 mb-1">現在幾歲 (年齡)</label>
+                <input type="number" id="currentAge" value="30" min="18" max="99" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150" oninput="calculateRetirement()">
+            </div>
+            <div class="input-group">
+                <label for="retirementAge" class="block text-gray-700 mb-1">預計退休年齡 (年齡)</label>
+                <input type="number" id="retirementAge" value="50" min="19" max="100" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150" oninput="calculateRetirement()">
+            </div>
+        </div>
+        <!-- 顯示計算出的累積期年數 -->
+        <p class="text-sm text-gray-600 mt-2">
+            **距離退休還有幾年 (累積期):** <span id="accumulationYearsDisplay" class="font-bold text-indigo-700">0 年</span>
+        </p>
+
+        <h2 class="text-xl font-bold text-indigo-700 border-b pb-2 mb-4 pt-6">提領階段 (退休後)</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="input-group">
+                <label for="annualRate" class="block text-gray-700 mb-1">預期年化報酬率 (%)</label>
+                <input type="number" id="annualRate" value="7" min="0" step="0.1" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150" oninput="calculateRetirement()">
+            </div>
+            <div class="input-group">
+                <label for="retirementYears" class="block text-gray-700 mb-1">退休後生活年數 (年)</label>
+                <input type="number" id="retirementYears" value="30" min="1" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150" oninput="calculateRetirement()">
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 結果展示區塊 -->
+    <div id="result" class="result-box text-center">
+        <h3 class="text-xl sm:text-2xl font-bold text-gray-800 mb-4">分析結果與資產狀況</h3>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+            <div class="bg-indigo-50 p-4 rounded-lg">
+                <p class="text-sm text-gray-500">退休時累積總資產</p>
+                <p class="text-2xl font-extrabold text-indigo-600" id="accumulatedAssets">TWD 0</p>
+            </div>
+            <div class="bg-green-50 p-4 rounded-lg">
+                <p class="text-sm text-gray-500">退休後每年可用</p>
+                <p class="text-2xl font-extrabold text-green-600" id="annualWithdrawal">TWD 0</p>
+            </div>
+            <div class="bg-yellow-50 p-4 rounded-lg">
+                <p class="text-sm text-gray-500">退休後每月可用 (預估)</p>
+                <p class="text-2xl font-extrabold text-yellow-600" id="monthlyWithdrawal">TWD 0</p>
+            </div>
+        </div>
+        
+        <p id="alertMessage" class="mt-4 text-red-500 font-semibold hidden">輸入有誤，請檢查參數。</p>
+    </div>
+    
+    <!-- 圖表區塊 -->
+    <div class="mt-8">
+        <h3 class="text-xl font-bold text-gray-800 mb-4 text-center">資產趨勢長條圖 (年)</h3>
+        <div class="chart-container">
+            <canvas id="assetChart"></canvas>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let assetChart; // Chart.js 實例
+
+    // 格式化數字為台幣
+    const formatter = new Intl.NumberFormat('zh-TW', {
+        style: 'currency',
+        currency: 'TWD',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
+
+    // 核心退休財務計算函數
+    function calculateRetirement() {
+        const PV_initial = parseFloat(document.getElementById('initialCapital').value) || 0;
+        const PMT = parseFloat(document.getElementById('monthlySaving').value) || 0;
+        const R_annual = (parseFloat(document.getElementById('annualRate').value) / 100) || 0;
+        const T_ret = parseFloat(document.getElementById('retirementYears').value) || 1;
+        
+        // 新增的年齡計算邏輯
+        const currentAge = parseFloat(document.getElementById('currentAge').value) || 0;
+        const retirementAge = parseFloat(document.getElementById('retirementAge').value) || 0;
+        
+        const T_acc = retirementAge - currentAge; // 累積期年數
+
+        const alertElement = document.getElementById('alertMessage');
+        alertElement.classList.add('hidden');
+        document.getElementById('accumulationYearsDisplay').textContent = `${T_acc > 0 ? T_acc : 0} 年`;
+
+
+        // 檢查基本輸入和年齡邏輯
+        if (currentAge <= 0 || retirementAge <= 0 || T_acc <= 0 || T_ret <= 0 || R_annual < 0) {
+            alertElement.textContent = '請檢查輸入參數：現在年齡、退休年齡和退休年數需大於 0，且退休年齡需大於現在年齡。';
+            alertElement.classList.remove('hidden');
+            displayResults(0, 0, 0); // 清空結果
+            updateChart([], []); // 清空圖表
+            return;
+        }
+
+        // --- 累積階段 (Accumulation Phase) 計算 ---
+        const R_monthly = R_annual / 12;
+        const N_periods = T_acc * 12;
+
+        let FV_acc = 0; // 退休時累積的資產總額
+
+        if (R_monthly === 0) {
+            // 無利息
+            FV_acc = PV_initial + (PMT * N_periods);
+        } else {
+            const futureValueFactor = Math.pow(1 + R_monthly, N_periods);
+
+            // 1. 期初本金的未來價值
+            const FV_PV = PV_initial * futureValueFactor;
+
+            // 2. 定期投入的未來價值 (假設期末投入)
+            const FV_PMT = PMT * ((futureValueFactor - 1) / R_monthly);
+            
+            FV_acc = FV_PV + FV_PMT;
+        }
+        
+        FV_acc = Math.round(FV_acc); // 退休時總資產 (四捨五入)
+
+
+        // --- 提領階段 (Withdrawal Phase) 計算 ---
+        let annualWithdrawal = 0;
+        let monthlyWithdrawal = 0;
+        
+        // 使用年金提領 (Annuity) - 計算固定提領金額直到資產耗盡
+        // PMT = (PV * R_annual) / [1 - (1 + R_annual)^(-T_ret)]
+        if (R_annual === 0) {
+            // 無利息情況下，提領額 = 總資產 / 年數
+            annualWithdrawal = FV_acc / T_ret;
+        } else {
+            annualWithdrawal = (FV_acc * R_annual) / (1 - Math.pow(1 + R_annual, -T_ret));
+        }
+
+        annualWithdrawal = Math.round(annualWithdrawal);
+        monthlyWithdrawal = Math.round(annualWithdrawal / 12);
+        
+        // --- 視覺化數據準備 (Accumulation + Drawdown) ---
+        const yearsArray = [];
+        const assetsArray = [];
+        let currentAsset = PV_initial;
+        
+        // 累積期數據
+        for (let y = 1; y <= T_acc; y++) {
+            yearsArray.push(`累積 ${y} 年`);
+            const N_y_periods = y * 12;
+            let FV_y = 0;
+
+            if (R_monthly === 0) {
+                FV_y = PV_initial + (PMT * N_y_periods);
+            } else {
+                const futureValueFactor_y = Math.pow(1 + R_monthly, N_y_periods);
+                const FV_PV_y = PV_initial * futureValueFactor_y;
+                const FV_PMT_y = PMT * ((futureValueFactor_y - 1) / R_monthly);
+                FV_y = FV_PV_y + FV_PMT_y;
+            }
+            currentAsset = Math.round(FV_y);
+            assetsArray.push(currentAsset);
+        }
+
+        // 提領期數據
+        currentAsset = FV_acc; // 從累積的總資產開始
+        for (let y = 1; y <= T_ret; y++) {
+            yearsArray.push(`提領 ${y} 年`);
+            let startOfYear = currentAsset;
+            let endOfYear = 0;
+
+            if (R_annual === 0) {
+                 // 每年提領 annualWithdrawal
+                 endOfYear = Math.max(0, startOfYear - annualWithdrawal);
+            } else {
+                // 每年成長 R_annual，然後減去提領額
+                const interestGained = startOfYear * R_annual;
+                endOfYear = Math.max(0, startOfYear + interestGained - annualWithdrawal);
+            }
+            
+            // 由於 Chart.js 圖表顯示的是 "年終" 餘額，我們將這個值加入
+            assetsArray.push(Math.round(endOfYear)); 
+            currentAsset = endOfYear;
+        }
+
+
+        // --- 顯示結果與繪製圖表 ---
+        displayResults(FV_acc, annualWithdrawal, monthlyWithdrawal);
+        updateChart(yearsArray, assetsArray);
+    }
+
+    // 顯示結果
+    function displayResults(accumulated, annual, monthly) {
+        document.getElementById('accumulatedAssets').textContent = formatter.format(accumulated);
+        document.getElementById('annualWithdrawal').textContent = formatter.format(annual);
+        document.getElementById('monthlyWithdrawal').textContent = formatter.format(monthly);
+    }
+
+    // 更新 Chart.js 圖表
+    function updateChart(labels, data) {
+        const ctx = document.getElementById('assetChart').getContext('2d');
+        
+        if (assetChart) {
+            assetChart.destroy(); // 銷毀舊圖表
+        }
+
+        // 找到累積期結束點的索引
+        const accumulationEndIndex = labels.findIndex(label => label.includes('累積'));
+        const backgroundColor = labels.map((label, index) => {
+            if (index <= accumulationEndIndex) {
+                return '#4c51bf'; // 藍色 (累積期)
+            } else {
+                return '#38a169'; // 綠色 (提領期)
+            }
+        });
+
+
+        assetChart = new Chart(ctx, {
+            type: 'bar', // 使用長條圖
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '年終資產餘額 (TWD)',
+                    data: data,
+                    backgroundColor: backgroundColor,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: true,
+                        title: {
+                            display: true,
+                            text: '計畫年度'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        stacked: true,
+                        title: {
+                            display: true,
+                            text: '資產總額 (TWD)'
+                        },
+                        ticks: {
+                            callback: function(value, index, values) {
+                                // 格式化 Y 軸數字為 K/M 單位
+                                if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
+                                if (value >= 1000) return (value / 1000).toFixed(0) + 'K';
+                                return value;
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                         callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                label += formatter.format(context.parsed.y);
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 初始化應用程式
+    window.onload = () => {
+        calculateRetirement(); // 首次載入即計算並繪圖
+    };
+</script>
+
+</body>
+</html>
